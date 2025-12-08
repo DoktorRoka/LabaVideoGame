@@ -15,17 +15,25 @@ namespace LabaVideoGame
     {
 
         private Random rnd;
-        private int seed; // сид для звезд, поведения тарелочницы и т.д
+        private int seed; // сид для звезд, поведения тарелочницы и метеоритов
 
+        // свойства героя
         private Bitmap heroSprite;
         private int heroX;
         private int heroY;
         private int heroSpeed = 10;
+        private int heroWidth;
+        private int heroHeight;
+        private float heroScale = 0.5f;
+        //
+
 
         private List<Point> stars;   // список звёзд
         private int starsCount = 200;
         private int starSpeed = 1;   // скорость движения фона
         private Timer starTimer;     // таймер для анимации звёзд
+
+        
 
         public Form1()
         {
@@ -42,9 +50,12 @@ namespace LabaVideoGame
 
             string heroSpritePath = Path.Combine(Application.StartupPath, "sprites", "main_hero.png");
             heroSprite = new Bitmap(heroSpritePath);
+            heroScale = 0.5f; // 50%, можешь поменять
+            heroWidth = (int)(heroSprite.Width * heroScale);
+            heroHeight = (int)(heroSprite.Height * heroScale);
 
             heroX = 50;
-            heroY = (this.ClientSize.Height - heroSprite.Height) / 2;
+            heroY = (this.ClientSize.Height - heroHeight) / 2;
 
             stars = new List<Point>();
             int width = this.ClientSize.Width;
@@ -132,7 +143,7 @@ namespace LabaVideoGame
         {
             if (heroSprite != null)
             {
-                g.DrawImage(heroSprite, heroX, heroY);
+                g.DrawImage(heroSprite, heroX, heroY, heroWidth, heroHeight);
             }
         }
 
@@ -160,12 +171,9 @@ namespace LabaVideoGame
             if (heroY < 0)
                 heroY = 0;
 
-            if (heroSprite != null)
-            {
-                int bottomLimit = this.ClientSize.Height - heroSprite.Height;
-                if (heroY > bottomLimit)
-                    heroY = bottomLimit;
-            }
+            int bottomLimit = this.ClientSize.Height - heroHeight;
+            if (heroY > bottomLimit)
+                heroY = bottomLimit;
 
             // Перерисовать форму
             this.Invalidate();

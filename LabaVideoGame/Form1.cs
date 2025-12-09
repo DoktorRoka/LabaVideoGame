@@ -28,6 +28,16 @@ namespace LabaVideoGame
         //
 
 
+        //свойства тарелочницы
+        private PictureBox tarelochinca;
+        private int tarelochincaSpeed = 3;           // скорость движения по вертикали
+        private int tarelochincaDirection = -1;      // -1 = вверх, 1 = вниз
+        private int tarelochincaTimeSinceFlipMs = 0; // сколько миллисекунд с последней смены направления
+        private float tarelochincaScale = 0.5f;
+
+
+
+
         private List<Point> stars;   // список звёзд
         private int starsCount = 200;
         private int starSpeed = 1;   // скорость движения фона
@@ -56,6 +66,33 @@ namespace LabaVideoGame
 
             heroX = 50;
             heroY = (this.ClientSize.Height - heroHeight) / 2;
+
+
+            tarelochinca = new PictureBox();
+            string tarelochincaPath = Path.Combine(Application.StartupPath, "sprites", "tarelochinca.gif");
+            tarelochinca.Image = Image.FromFile(tarelochincaPath);
+
+            tarelochincaScale = 0.5f; 
+
+            int originalWidth = tarelochinca.Image.Width;
+            int originalHeight = tarelochinca.Image.Height;
+
+            int scaledWidth = (int)(originalWidth * tarelochincaScale);
+            int scaledHeight = (int)(originalHeight * tarelochincaScale);
+
+            tarelochinca.Width = scaledWidth;
+            tarelochinca.Height = scaledHeight;
+
+            tarelochinca.SizeMode = PictureBoxSizeMode.StretchImage;
+
+            tarelochinca.BackColor = Color.Transparent;
+
+            tarelochinca.Left = this.ClientSize.Width - tarelochinca.Width - 20;
+            tarelochinca.Top = (this.ClientSize.Height - tarelochinca.Height) / 2;
+
+            this.Controls.Add(tarelochinca);
+
+
 
             stars = new List<Point>();
             int width = this.ClientSize.Width;
@@ -86,8 +123,9 @@ namespace LabaVideoGame
 
         private void StarTimer_Tick(object sender, EventArgs e)
         {
-            MoveStars();
-            this.Invalidate(); // перерисовать форму → вызовет Form1_Paint
+            MoveStars();          // движение звёзд
+            MoveTarelochinca();   // движение тарелочки
+            this.Invalidate();    // перерисовать фон и героя
         }
 
         private void MoveStars()
@@ -146,6 +184,53 @@ namespace LabaVideoGame
                 g.DrawImage(heroSprite, heroX, heroY, heroWidth, heroHeight);
             }
         }
+
+
+        private void MoveTarelochinca()
+        {
+            if (tarelochinca == null)
+                return;
+
+            int height = this.ClientSize.Height;
+
+            // движение по текущему направлению
+            int newTop = tarelochinca.Top + tarelochincaDirection * tarelochincaSpeed;
+
+            // отскок от верхнего края
+            if (newTop < 0)
+            {
+                newTop = 0;
+                tarelochincaDirection = 1;                // летим вниз
+                tarelochincaTimeSinceFlipMs = 0;          // сброс таймера смены направления
+            }
+            else
+            {
+                // отскок от нижнего края
+                int bottomLimit = height - tarelochinca.Height;
+                if (newTop > bottomLimit)
+                {
+                    newTop = bottomLimit;
+                    tarelochincaDirection = -1;           // летим вверх
+                    tarelochincaTimeSinceFlipMs = 0;
+                }
+            }
+
+            tarelochinca.Top = newTop;
+
+            // накапливаем время с последней смены направления
+            tarelochincaTimeSinceFlipMs += starTimer.Interval;
+
+            if (tarelochincaTimeSinceFlipMs >= 3000)
+            {
+                // вероятность разворота, например 2% на тик
+                if (rnd.Next(0, 100) < 2)
+                {
+                    tarelochincaDirection *= -1;          // меняем направление
+                    tarelochincaTimeSinceFlipMs = 0;      // заново считаем паузу
+                }
+            }
+        }
+
 
         private void Form1_KeyUp(object sender, KeyEventArgs e)
         {

@@ -80,6 +80,7 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="sprites\tarelochica.gif" />
     <Content Include="sprites\tarelochica.png" />
     <Content Include="sprites\main_hero.png" />
   </ItemGroup>

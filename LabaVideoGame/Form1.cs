@@ -120,7 +120,7 @@ namespace LabaVideoGame
         private int asteroidMaxSpeed = 5;
 
         private int asteroidSpawnElapsedMs = 0;
-        private const int AsteroidSpawnIntervalMs = 2500; // каждые ~2.5 сек новый астероид
+        private const int AsteroidSpawnIntervalMs = 5000; // каждые ~2.5 сек новый астероид
 
         public Form1()
         {

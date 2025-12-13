@@ -102,7 +102,25 @@ namespace LabaVideoGame
 
         private int score = 0; // счёт игры
 
+        //астероиды
+        private class Asteroid
+        {
+            public PictureBox Picture;
+            public int Speed;
+        }
 
+        private List<Asteroid> asteroids = new List<Asteroid>();
+
+        private Image asteroidSprite1;
+        private Image asteroidSprite2;
+        private Image asteroidSprite3;
+
+        private float asteroidScale = 0.6f;        // масштаб астeroidов
+        private int asteroidMinSpeed = 2;
+        private int asteroidMaxSpeed = 5;
+
+        private int asteroidSpawnElapsedMs = 0;
+        private const int AsteroidSpawnIntervalMs = 2500; // каждые ~2.5 сек новый астероид
 
         public Form1()
         {
@@ -186,6 +204,12 @@ namespace LabaVideoGame
             bgPlayer.settings.setMode("loop", true); // зациклить
             bgPlayer.controls.play();
 
+            //гифки астероидов
+            string asteroidsPath = Path.Combine(Application.StartupPath, "sprites", "asteroids");
+            asteroidSprite1 = Image.FromFile(Path.Combine(asteroidsPath, "asteroid1.gif"));
+            asteroidSprite2 = Image.FromFile(Path.Combine(asteroidsPath, "asteroid2.gif"));
+            asteroidSprite3 = Image.FromFile(Path.Combine(asteroidsPath, "asteroid3.gif"));
+
             this.Paint += Form1_Paint;
             this.KeyDown += Form1_KeyDown;
 
@@ -198,8 +222,16 @@ namespace LabaVideoGame
         {
             MoveStars();          // движение звёзд
             MoveTarelochinca();   // движение тарелочки
+            MoveAsteroids();
             MoveHeroBullets();
             MoveEnemyBullets();   // движение пуль
+
+
+            asteroidSpawnElapsedMs += starTimer.Interval;
+            if (asteroidSpawnElapsedMs >= AsteroidSpawnIntervalMs)
+            {
+                SpawnAsteroidsIfPossible();
+            }
 
             // таймер до следующего выстрела
             enemyShootElapsedMs += starTimer.Interval;
@@ -222,6 +254,11 @@ namespace LabaVideoGame
 
         }
 
+        private void SpawnAsteroidsIfPossible()
+        {
+            asteroidSpawnElapsedMs = 0;
+            SpawnAsteroid();
+        }
 
         private void HeroShoot()
         {
@@ -274,6 +311,26 @@ namespace LabaVideoGame
 
                 Rectangle bulletRect = new Rectangle((int)b.X, (int)b.Y, b.Width, b.Height);
 
+
+                bool hitAsteroid = false;
+                if (asteroids != null && asteroids.Count > 0)
+                {
+                    for (int j = 0; j < asteroids.Count; j++)
+                    {
+                        Asteroid ast = asteroids[j];
+                        if (bulletRect.IntersectsWith(ast.Picture.Bounds))
+                        {
+                            // пуля уничтожается, астероид жив
+                            heroBullets.RemoveAt(i);
+                            hitAsteroid = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hitAsteroid)
+                    continue;
+
                 // столкновение с тарелкой
                 if (enemyRect.IntersectsWith(bulletRect))
                 {
@@ -305,6 +362,109 @@ namespace LabaVideoGame
             foreach (HeroBullet b in heroBullets)
             {
                 g.DrawImage(b.Sprite, b.X, b.Y, b.Width, b.Height);
+            }
+        }
+        private void SpawnAsteroid()
+        {
+            if (asteroidSprite1 == null || asteroidSprite2 == null || asteroidSprite3 == null)
+                return;
+
+            // выбираем случайный спрайт
+            int type = rnd.Next(0, 3);
+            Image sprite;
+            switch (type)
+            {
+                case 0:
+                    sprite = asteroidSprite1;
+                    break;
+                case 1:
+                    sprite = asteroidSprite2;
+                    break;
+                default:
+                    sprite = asteroidSprite3;
+                    break;
+            }
+
+            // создаём PictureBox для астероида
+            PictureBox pb = new PictureBox();
+            pb.Image = sprite;
+            pb.BackColor = Color.Transparent;
+            pb.SizeMode = PictureBoxSizeMode.StretchImage;
+
+            int w = (int)(sprite.Width * asteroidScale);
+            int h = (int)(sprite.Height * asteroidScale);
+            pb.Width = w;
+            pb.Height = h;
+
+            // стартовая позиция: справа, на случайной высоте
+            int startX = this.ClientSize.Width;
+            int maxY = this.ClientSize.Height - h;
+            if (maxY < 0) maxY = 0;
+            int startY = rnd.Next(0, maxY + 1);
+
+            pb.Left = startX;
+            pb.Top = startY;
+
+            this.Controls.Add(pb);
+            // Чтобы астероид был "поверх" фона, но под тарелкой можно не заморачиваться, WinForms сам нормально отрисует
+
+            Asteroid ast = new Asteroid
+            {
+                Picture = pb,
+                Speed = rnd.Next(asteroidMinSpeed, asteroidMaxSpeed + 1)
+            };
+
+            asteroids.Add(ast);
+        }
+
+        private void MoveAsteroids()
+        {
+            if (asteroids == null || asteroids.Count == 0)
+                return;
+
+            Rectangle heroRect = new Rectangle(heroX, heroY, heroWidth, heroHeight);
+
+            for (int i = asteroids.Count - 1; i >= 0; i--)
+            {
+                Asteroid ast = asteroids[i];
+                PictureBox pb = ast.Picture;
+
+                // Движемся влево
+                pb.Left -= ast.Speed;
+
+                // Вылетел за левый край — удалить
+                if (pb.Right < 0)
+                {
+                    this.Controls.Remove(pb);
+                    pb.Dispose();
+                    asteroids.RemoveAt(i);
+                    continue;
+                }
+
+                // Столкновение с героем
+                if (heroRect.IntersectsWith(pb.Bounds))
+                {
+                    // -10 HP
+                    heroHp -= 10;
+                    if (heroHp < 0) heroHp = 0;
+
+                    // -1/4 очков
+                    int lose = score / 4;
+                    score -= lose;
+                    if (score < 0) score = 0;
+
+                    // удалить астероид
+                    this.Controls.Remove(pb);
+                    pb.Dispose();
+                    asteroids.RemoveAt(i);
+
+                    // проверка смерти героя
+                    if (heroHp <= 0)
+                    {
+                        starTimer.Stop();
+                        MessageBox.Show("Вы врезались в астероид и погибли!", "Game Over");
+                    }
+                }
             }
         }
 
@@ -542,6 +702,28 @@ namespace LabaVideoGame
                     enemyBullets.RemoveAt(i);
                     continue;
                 }
+
+
+
+                bool hitAsteroid = false;
+                if (asteroids != null && asteroids.Count > 0)
+                {
+                    for (int j = 0; j < asteroids.Count; j++)
+                    {
+                        Asteroid ast = asteroids[j];
+                        if (bulletRect.IntersectsWith(ast.Picture.Bounds))
+                        {
+                            // пуля уничтожается, астероид жив
+                            enemyBullets.RemoveAt(i);
+                            hitAsteroid = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (hitAsteroid)
+                    continue;
+
 
                 // столкновение с героем
                 if (heroRect.IntersectsWith(bulletRect))

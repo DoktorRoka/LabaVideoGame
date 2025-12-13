@@ -65,7 +65,7 @@ namespace LabaVideoGame
         private const int EnemyShootIntervalMs = 3000;
 
 
-        // HP тарелки
+        // хп тарелки
         private int enemyHp = 1000;
 
         // спрайт пули героя
@@ -99,7 +99,7 @@ namespace LabaVideoGame
         private int starSpeed = 1;   // скорость движения фона
         private Timer starTimer;     // таймер для анимации звёзд
 
-        
+        private int score = 0; // счёт игры
 
 
 
@@ -270,7 +270,7 @@ namespace LabaVideoGame
                 {
                     enemyHp -= 1;
                     if (enemyHp < 0) enemyHp = 0;
-
+                    score += 1;
                     heroBullets.RemoveAt(i);
 
                     // проверка смерти тарелки
@@ -529,6 +529,7 @@ namespace LabaVideoGame
                 // вышла за левый край — удаляем
                 if (b.X + b.Width < 0)
                 {
+                    score += 2;
                     enemyBullets.RemoveAt(i);
                     continue;
                 }
@@ -538,6 +539,11 @@ namespace LabaVideoGame
                 {
                     heroHp -= b.Damage;
                     if (heroHp < 0) heroHp = 0;
+                    int lose = score / 4;
+                    score -= lose;
+
+                    if (score < 0) 
+                        score = 0;
 
                     enemyBullets.RemoveAt(i);
 
@@ -566,6 +572,7 @@ namespace LabaVideoGame
             using (Font font = new Font("Consolas", 12))
             {
                 g.DrawString("HP: " + heroHp, font, Brushes.Lime, 10, 10);
+                g.DrawString($"Score: {score}", font, Brushes.Yellow, 10, 30);
             }
         }
 

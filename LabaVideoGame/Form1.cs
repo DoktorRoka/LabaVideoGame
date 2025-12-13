@@ -8,12 +8,13 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
+using WMPLib;
 
 namespace LabaVideoGame
 {
     public partial class Form1 : Form
     {
-
+        private WindowsMediaPlayer bgPlayer;
         private Random rnd;
         private int seed; // сид для звезд, поведения тарелочницы и метеоритов
 
@@ -96,7 +97,7 @@ namespace LabaVideoGame
 
         private List<Point> stars;   // список звёзд
         private int starsCount = 200;
-        private int starSpeed = 1;   // скорость движения фона
+        private int starSpeed = 3;   // скорость движения фона
         private Timer starTimer;     // таймер для анимации звёзд
 
         private int score = 0; // счёт игры
@@ -176,6 +177,14 @@ namespace LabaVideoGame
             starTimer.Start();
 
 
+            //музыка
+            string musicPath = Path.Combine(Application.StartupPath, "sounds", "main_ost.mp3");
+
+            bgPlayer = new WindowsMediaPlayer();
+            bgPlayer.URL = musicPath;
+            bgPlayer.settings.volume = 40;         // громкость 0–100
+            bgPlayer.settings.setMode("loop", true); // зациклить
+            bgPlayer.controls.play();
 
             this.Paint += Form1_Paint;
             this.KeyDown += Form1_KeyDown;

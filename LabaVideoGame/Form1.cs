@@ -57,9 +57,40 @@ namespace LabaVideoGame
         private float bulletScale = 0.1f;   // масштаб пуль
         private int bulletSpeed = 15;        // скорость полёта пуль
 
+
+
+
         // стрельба раз в 3 секунды
         private int enemyShootElapsedMs = 0;
         private const int EnemyShootIntervalMs = 3000;
+
+
+        // HP тарелки
+        private int enemyHp = 1000;
+
+        // спрайт пули героя
+        private Bitmap heroBulletSprite;
+
+        // список пуль героя
+        private class HeroBullet
+        {
+            public float X;
+            public float Y;
+            public int Width;
+            public int Height;
+            public Bitmap Sprite;
+        }
+
+        private List<HeroBullet> heroBullets = new List<HeroBullet>();
+
+        // параметры пуль героя
+        private float heroBulletScale = 0.5f; // масштаб пули героя
+        private int heroBulletSpeed = 10;
+
+        // таймер автострельбы героя
+        private int heroShootElapsedMs = 0;
+        private const int HeroShootIntervalMs = 150; // стреляет примерно 6–7 раз в секунду
+
 
 
 
@@ -123,6 +154,7 @@ namespace LabaVideoGame
             spoonSprite = new Bitmap(Path.Combine(attacksDir, "spoon.png"));
             forkSprite = new Bitmap(Path.Combine(attacksDir, "fork.png"));
             knifeSprite = new Bitmap(Path.Combine(attacksDir, "knife.png"));
+            heroBulletSprite = new Bitmap(Path.Combine(attacksDir, "main_hero_attack.png"));
 
 
 
@@ -157,7 +189,7 @@ namespace LabaVideoGame
         {
             MoveStars();          // движение звёзд
             MoveTarelochinca();   // движение тарелочки
-
+            MoveHeroBullets();
             MoveEnemyBullets();   // движение пуль
 
             // таймер до следующего выстрела
@@ -168,10 +200,105 @@ namespace LabaVideoGame
                 enemyShootElapsedMs = 0;
             }
 
+
+            heroShootElapsedMs += starTimer.Interval;
+            if (heroShootElapsedMs >= HeroShootIntervalMs)
+            {
+                HeroShoot();
+                heroShootElapsedMs = 0;
+            }
+
             this.Invalidate();    // перерисовать фон и героя
 
 
         }
+
+
+        private void HeroShoot()
+        {
+            if (heroBulletSprite == null)
+                return;
+
+            // размер пули с учётом масштаба
+            int w = (int)(heroBulletSprite.Width * heroBulletScale);
+            int h = (int)(heroBulletSprite.Height * heroBulletScale);
+
+            // стартовая позиция — перед кораблём, примерно из середины по высоте
+            float startX = heroX + heroWidth;                 // нос корабля
+            float startY = heroY + heroHeight / 2f - h / 2f;  // центр по вертикали
+
+            HeroBullet bullet = new HeroBullet
+            {
+                X = startX,
+                Y = startY,
+                Width = w,
+                Height = h,
+                Sprite = heroBulletSprite
+            };
+
+            heroBullets.Add(bullet);
+        }
+        private void MoveHeroBullets()
+        {
+            if (heroBullets == null || heroBullets.Count == 0)
+                return;
+
+            // прямоугольник тарелки (она же PictureBox)
+            if (tarelochinca == null)
+                return;
+
+            Rectangle enemyRect = tarelochinca.Bounds;
+
+            for (int i = heroBullets.Count - 1; i >= 0; i--)
+            {
+                HeroBullet b = heroBullets[i];
+
+                // полет пули вправо
+                b.X += heroBulletSpeed;
+
+                // если улетела за правый край — удаляем
+                if (b.X > this.ClientSize.Width)
+                {
+                    heroBullets.RemoveAt(i);
+                    continue;
+                }
+
+                Rectangle bulletRect = new Rectangle((int)b.X, (int)b.Y, b.Width, b.Height);
+
+                // столкновение с тарелкой
+                if (enemyRect.IntersectsWith(bulletRect))
+                {
+                    enemyHp -= 1;
+                    if (enemyHp < 0) enemyHp = 0;
+
+                    heroBullets.RemoveAt(i);
+
+                    // проверка смерти тарелки
+                    if (enemyHp <= 0)
+                    {
+                        // можно "убить" тарелку: остановить таймер и показать сообщение
+                        starTimer.Stop();
+                        MessageBox.Show("Тарелка уничтожена! Победа!", "Победа");
+
+                        // по желанию — спрятать тарелку
+                        tarelochinca.Visible = false;
+
+                        break;
+                    }
+                }
+            }
+        }
+        private void DrawHeroBullets(Graphics g)
+        {
+            if (heroBullets == null || heroBullets.Count == 0)
+                return;
+
+            foreach (HeroBullet b in heroBullets)
+            {
+                g.DrawImage(b.Sprite, b.X, b.Y, b.Width, b.Height);
+            }
+        }
+
 
         private void MoveStars()
         {
@@ -210,6 +337,17 @@ namespace LabaVideoGame
             DrawHero(e.Graphics);
             DrawEnemyBullets(e.Graphics);
             DrawHud(e.Graphics);
+            DrawHeroBullets(e.Graphics);    // <-- пули героя
+            DrawEnemyHp(e.Graphics);        // необязательно, но красиво
+        }
+        private void DrawEnemyHp(Graphics g)
+        {
+            using (Font font = new Font("Consolas", 12))
+            {
+                string text = "Enemy HP: " + enemyHp;
+                g.DrawString(text, font, Brushes.Red,
+                    this.ClientSize.Width - 150, 10);
+            }
         }
 
         private void DrawStars(Graphics g)

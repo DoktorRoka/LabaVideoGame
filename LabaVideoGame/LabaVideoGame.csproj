@@ -85,5 +85,8 @@
     <Content Include="sprites\main_hero.png" />
     <Content Include="sprites\tarelochinca.gif" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="sprites\attacks\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

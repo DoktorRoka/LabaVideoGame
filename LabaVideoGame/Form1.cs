@@ -25,6 +25,7 @@ namespace LabaVideoGame
         private int heroWidth;
         private int heroHeight;
         private float heroScale = 0.5f;
+        private int heroHp = 100;
         //
 
 
@@ -36,6 +37,30 @@ namespace LabaVideoGame
         private float tarelochincaScale = 0.5f;
 
 
+        //пули тарелочницы
+        private Bitmap spoonSprite;
+        private Bitmap forkSprite;
+        private Bitmap knifeSprite;
+
+        private class EnemyBullet
+        {
+            public float X;
+            public float Y;
+            public int Width;
+            public int Height;
+            public int Damage;
+            public Bitmap Sprite;
+        }
+
+        private List<EnemyBullet> enemyBullets = new List<EnemyBullet>();
+
+        private float bulletScale = 0.1f;   // масштаб пуль
+        private int bulletSpeed = 15;        // скорость полёта пуль
+
+        // стрельба раз в 3 секунды
+        private int enemyShootElapsedMs = 0;
+        private const int EnemyShootIntervalMs = 3000;
+
 
 
         private List<Point> stars;   // список звёзд
@@ -44,6 +69,8 @@ namespace LabaVideoGame
         private Timer starTimer;     // таймер для анимации звёзд
 
         
+
+
 
         public Form1()
         {
@@ -92,6 +119,11 @@ namespace LabaVideoGame
 
             this.Controls.Add(tarelochinca);
 
+            string attacksDir = Path.Combine(Application.StartupPath, "sprites/attacks");
+            spoonSprite = new Bitmap(Path.Combine(attacksDir, "spoon.png"));
+            forkSprite = new Bitmap(Path.Combine(attacksDir, "fork.png"));
+            knifeSprite = new Bitmap(Path.Combine(attacksDir, "knife.png"));
+
 
 
             stars = new List<Point>();
@@ -125,7 +157,20 @@ namespace LabaVideoGame
         {
             MoveStars();          // движение звёзд
             MoveTarelochinca();   // движение тарелочки
+
+            MoveEnemyBullets();   // движение пуль
+
+            // таймер до следующего выстрела
+            enemyShootElapsedMs += starTimer.Interval;
+            if (enemyShootElapsedMs >= EnemyShootIntervalMs)
+            {
+                EnemyShoot();                 // тарелочка стреляет
+                enemyShootElapsedMs = 0;
+            }
+
             this.Invalidate();    // перерисовать фон и героя
+
+
         }
 
         private void MoveStars()
@@ -163,6 +208,8 @@ namespace LabaVideoGame
         {
             DrawStars(e.Graphics);
             DrawHero(e.Graphics);
+            DrawEnemyBullets(e.Graphics);
+            DrawHud(e.Graphics);
         }
 
         private void DrawStars(Graphics g)
@@ -263,5 +310,126 @@ namespace LabaVideoGame
             // Перерисовать форму
             this.Invalidate();
         }
+
+
+        private void EnemyShoot()
+        {
+            if (tarelochinca == null)
+                return;
+
+            // выбор типа пули: 0 - spoon, 1 - fork, 2 - knife
+            int type = rnd.Next(0, 3);
+
+            Bitmap sprite;
+            int damage;
+
+            switch (type)
+            {
+                case 0: // spoon
+                    sprite = spoonSprite;
+                    damage = 10;
+                    break;
+                case 1: // fork
+                    sprite = forkSprite;
+                    damage = 10;
+                    break;
+                default: // knife
+                    sprite = knifeSprite;
+                    damage = 15;
+                    break;
+            }
+
+            int w = (int)(sprite.Width * bulletScale);
+            int h = (int)(sprite.Height * bulletScale);
+
+            // случайно выбираем "верхний" или "нижний" борт тарелки
+            int side = rnd.Next(0, 2); // 0 - верх, 1 - низ
+
+            float startX = tarelochinca.Left - w - 5; // чуть спереди (слева от тарелки)
+            float startY;
+
+            if (side == 0)
+            {
+                // верхний "борт"
+                startY = tarelochinca.Top + tarelochinca.Height * 0.25f - h / 2f;
+            }
+            else
+            {
+                // нижний "борт"
+                startY = tarelochinca.Top + tarelochinca.Height * 0.75f - h / 2f;
+            }
+
+            EnemyBullet bullet = new EnemyBullet
+            {
+                X = startX,
+                Y = startY,
+                Width = w,
+                Height = h,
+                Damage = damage,
+                Sprite = sprite
+            };
+
+            enemyBullets.Add(bullet);
+        }
+
+        private void MoveEnemyBullets()
+        {
+            if (enemyBullets == null || enemyBullets.Count == 0)
+                return;
+
+            Rectangle heroRect = new Rectangle(heroX, heroY, heroWidth, heroHeight);
+
+            for (int i = enemyBullets.Count - 1; i >= 0; i--)
+            {
+                EnemyBullet b = enemyBullets[i];
+
+                // полёт влево
+                b.X -= bulletSpeed;
+
+                Rectangle bulletRect = new Rectangle((int)b.X, (int)b.Y, b.Width, b.Height);
+
+                // вышла за левый край — удаляем
+                if (b.X + b.Width < 0)
+                {
+                    enemyBullets.RemoveAt(i);
+                    continue;
+                }
+
+                // столкновение с героем
+                if (heroRect.IntersectsWith(bulletRect))
+                {
+                    heroHp -= b.Damage;
+                    if (heroHp < 0) heroHp = 0;
+
+                    enemyBullets.RemoveAt(i);
+
+                    // проверим, не умер ли герой
+                    if (heroHp <= 0)
+                    {
+                        starTimer.Stop();
+                        MessageBox.Show("Вы проиграли! Герой уничтожен.", "Game Over");
+                    }
+                }
+            }
+        }
+
+        private void DrawEnemyBullets(Graphics g)
+        {
+            if (enemyBullets == null || enemyBullets.Count == 0)
+                return;
+
+            foreach (EnemyBullet b in enemyBullets)
+            {
+                g.DrawImage(b.Sprite, b.X, b.Y, b.Width, b.Height);
+            }
+        }
+        private void DrawHud(Graphics g)
+        {
+            using (Font font = new Font("Consolas", 12))
+            {
+                g.DrawString("HP: " + heroHp, font, Brushes.Lime, 10, 10);
+            }
+        }
+
     }
 }

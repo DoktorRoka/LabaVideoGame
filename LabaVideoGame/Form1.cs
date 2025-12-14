@@ -120,6 +120,29 @@ namespace LabaVideoGame
         private int asteroidSpawnElapsedMs = 0;
         private const int AsteroidSpawnIntervalMs = 5000; // каждые ~2.5 сек новый астероид
 
+        // ===== ВТОРАЯ ФАЗА =====
+        private bool phase2Started = false;
+        private bool phase2Transition = false;
+        private int phase2ElapsedMs = 0;
+        private const int Phase2DelayMs = 4000;
+
+        private bool enemyInvulnerable = false; // "бессмертный" во время перехода
+        private bool enemyFrozen = false;       // стоит на месте во время перехода
+
+        // Стрельба врага: делаем интервал НЕ const, а переменный
+        private int enemyShootIntervalMs = 3000; // было 3000 в первой фазе
+
+        private string mainMusicPath;
+        private string secondPhaseMusicPath;
+
+        private bool musicFadingOut = false;
+        private int fadeStep = 2;   
+        private int mainVolume = 5;
+
+        // Злой спрайт тарелки
+        private Image tarelochincaAngryImage;
+
+
         public Form1()
         {
             InitializeComponent();
@@ -147,7 +170,10 @@ namespace LabaVideoGame
             string tarelochincaPath = Path.Combine(Application.StartupPath, "sprites", "tarelochinca.gif");
             tarelochinca.Image = Image.FromFile(tarelochincaPath);
 
-            tarelochincaScale = 0.5f; 
+            tarelochincaScale = 0.5f;
+            string angryPath = Path.Combine(Application.StartupPath, "sprites", "tarelochinca_angry.gif");
+            tarelochincaAngryImage = Image.FromFile(angryPath);
+
 
             int originalWidth = tarelochinca.Image.Width;
             int originalHeight = tarelochinca.Image.Height;
@@ -195,6 +221,7 @@ namespace LabaVideoGame
 
             //музыка
             string musicPath = Path.Combine(Application.StartupPath, "sounds", "main_ost.mp3");
+            secondPhaseMusicPath = Path.Combine(Application.StartupPath, "sounds", "second_phase.mp3");
 
             bgPlayer = new WindowsMediaPlayer();
             bgPlayer.URL = musicPath;
@@ -211,6 +238,9 @@ namespace LabaVideoGame
                 Path.Combine(astDir, "asteroid3.gif"),
             };
 
+
+
+
             this.Paint += Form1_Paint;
             this.KeyDown += Form1_KeyDown;
 
@@ -226,7 +256,7 @@ namespace LabaVideoGame
             MoveAsteroids();
             MoveHeroBullets();
             MoveEnemyBullets();   // движение пуль
-
+            UpdateSecondPhase();
 
             asteroidSpawnElapsedMs += starTimer.Interval;
             if (asteroidSpawnElapsedMs >= AsteroidSpawnIntervalMs)
@@ -242,6 +272,15 @@ namespace LabaVideoGame
                 enemyShootElapsedMs = 0;
             }
 
+            if (!phase2Transition)
+            {
+                enemyShootElapsedMs += starTimer.Interval;
+                if (enemyShootElapsedMs >= enemyShootIntervalMs)
+                {
+                    EnemyShoot();
+                    enemyShootElapsedMs = 0;
+                }
+            }
 
             heroShootElapsedMs += starTimer.Interval;
             if (heroShootElapsedMs >= HeroShootIntervalMs)
@@ -249,6 +288,9 @@ namespace LabaVideoGame
                 HeroShoot();
                 heroShootElapsedMs = 0;
             }
+
+
+
 
             this.Invalidate();    // перерисовать фон и героя
 
@@ -260,6 +302,115 @@ namespace LabaVideoGame
             asteroidSpawnElapsedMs = 0;
             SpawnAsteroid();
         }
+
+
+        private void UpdateSecondPhase()
+        {
+            // Запуск перехода, когда у врага стало <= 500 HP
+            if (!phase2Started && enemyHp <= 500)
+            {
+                StartPhase2Transition();
+            }
+
+            if (!phase2Transition)
+                return;
+
+            // тикает переход
+            phase2ElapsedMs += starTimer.Interval;
+
+            // плавное затухание музыки
+            UpdateMusicFadeOut();
+
+            // через 4 секунды включаем вторую фазу
+            if (phase2ElapsedMs >= Phase2DelayMs)
+            {
+                phase2Transition = false;
+
+                // 3) включаем новую музыку
+                PlaySecondPhaseMusic();
+
+                // 4) снова уязвим
+                enemyInvulnerable = false;
+
+                // 4) теперь стреляет раз в секунду
+                enemyShootIntervalMs = 1000;
+                enemyShootElapsedMs = 0;
+
+                tarelochincaSpeed = 10;
+
+                // можно вернуть движение
+                enemyFrozen = false;
+            }
+        }
+
+        private void StartPhase2Transition()
+        {
+            phase2Started = true;
+            phase2Transition = true;
+            phase2ElapsedMs = 0;
+            heroHp = 500;
+            // 1) музыка затихает
+            StartMusicFadeOut();
+
+            // 2) враг в правый центр и бессмертен
+            enemyInvulnerable = true;
+            enemyFrozen = true;
+
+            // ставим в правый центр
+            tarelochinca.Left = this.ClientSize.Width - tarelochinca.Width - 20;
+            tarelochinca.Top = (this.ClientSize.Height - tarelochinca.Height) / 2;
+
+            // 5) меняем анимацию на злую
+            SetTarelochincaImage(tarelochincaAngryImage);
+        }
+
+        private void StartMusicFadeOut()
+        {
+            if (bgPlayer == null) return;
+            musicFadingOut = true;
+        }
+
+        private void UpdateMusicFadeOut()
+        {
+            if (!musicFadingOut || bgPlayer == null) return;
+
+            int v = bgPlayer.settings.volume;
+            v -= fadeStep;
+
+            if (v <= 0)
+            {
+                v = 0;
+                musicFadingOut = false;
+                bgPlayer.settings.volume = 0;
+                bgPlayer.controls.stop(); // тишина до второй музыки
+            }
+            else
+            {
+                bgPlayer.settings.volume = v;
+            }
+        }
+
+        private void PlaySecondPhaseMusic()
+        {
+            if (bgPlayer == null) return;
+
+            bgPlayer.URL = secondPhaseMusicPath;
+            bgPlayer.settings.setMode("loop", true);
+            bgPlayer.settings.volume = mainVolume;
+            bgPlayer.controls.play();
+        }
+
+        private void SetTarelochincaImage(Image newImg)
+        {
+            // аккуратно меняем Image у PictureBox и освобождаем старый
+            if (tarelochinca.Image != null && !ReferenceEquals(tarelochinca.Image, newImg))
+            {
+                tarelochinca.Image.Dispose();
+            }
+
+            tarelochinca.Image = newImg;
+        }
+
 
         private void HeroShoot()
         {
@@ -335,24 +486,28 @@ namespace LabaVideoGame
                 // столкновение с тарелкой
                 if (enemyRect.IntersectsWith(bulletRect))
                 {
-                    enemyHp -= 1;
-                    if (enemyHp < 0) enemyHp = 0;
-                    score += 1;
+                    // пуля всё равно исчезает
                     heroBullets.RemoveAt(i);
 
-                    // проверка смерти тарелки
+                    // если враг "бессмертный" — урона и очков нет
+                    if (enemyInvulnerable)
+                        continue;
+
+                    enemyHp -= 1;
+                    if (enemyHp < 0) enemyHp = 0;
+
+                    score += 1;
+
                     if (enemyHp <= 0)
                     {
-                        // можно "убить" тарелку: остановить таймер и показать сообщение
                         starTimer.Stop();
                         MessageBox.Show("Тарелка уничтожена! Победа!", "Победа");
-
-                        // по желанию — спрятать тарелку
                         tarelochinca.Visible = false;
-
-                        break;
                     }
+
+                    continue;
                 }
+
             }
         }
         private void DrawHeroBullets(Graphics g)
@@ -552,6 +707,9 @@ namespace LabaVideoGame
 
         private void MoveTarelochinca()
         {
+            if (enemyFrozen)
+                return;
+
             if (tarelochinca == null)
                 return;
 
@@ -603,6 +761,18 @@ namespace LabaVideoGame
 
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
+
+            if (e.KeyCode == Keys.D2 || e.KeyCode == Keys.NumPad2)
+            {
+                enemyHp = 500;
+
+                // чтобы сработало сразу, не ждать следующего тика таймера:
+                if (!phase2Started)
+                    StartPhase2Transition();
+
+                this.Invalidate();
+                return;
+            }
             int step = heroSpeed;
 
             // Двигаем корабль ВВЕРХ при Left/Up

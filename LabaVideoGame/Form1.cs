@@ -27,6 +27,9 @@ namespace LabaVideoGame
         private int heroHeight;
         private float heroScale = 0.5f;
         private int heroHp = 100;
+
+        private bool moveUp, moveDown, moveLeft, moveRight;
+
         //
 
 
@@ -243,10 +246,11 @@ namespace LabaVideoGame
 
             this.Paint += Form1_Paint;
             this.KeyDown += Form1_KeyDown;
+            this.KeyPreview = true;
+            this.KeyUp += Form1_KeyUp;
 
 
 
-            
         }
 
         private void StarTimer_Tick(object sender, EventArgs e)
@@ -257,6 +261,7 @@ namespace LabaVideoGame
             MoveHeroBullets();
             MoveEnemyBullets();   // движение пуль
             UpdateSecondPhase();
+            MoveHeroByInput();
 
             asteroidSpawnElapsedMs += starTimer.Interval;
             if (asteroidSpawnElapsedMs >= AsteroidSpawnIntervalMs)
@@ -296,6 +301,35 @@ namespace LabaVideoGame
 
 
         }
+
+
+        private void MoveHeroByInput()
+        {
+            int dx = 0;
+            int dy = 0;
+
+            if (moveLeft) dx -= 1;
+            if (moveRight) dx += 1;
+            if (moveUp) dy -= 1;
+            if (moveDown) dy += 1;
+
+            if (dx == 0 && dy == 0)
+                return;
+
+            heroX += dx * heroSpeed;
+            heroY += dy * heroSpeed;
+
+            // Ограничения по X
+            if (heroX < 0) heroX = 0;
+            int rightLimit = this.ClientSize.Width - heroWidth;
+            if (heroX > rightLimit) heroX = rightLimit;
+
+            // Ограничения по Y
+            if (heroY < 0) heroY = 0;
+            int bottomLimit = this.ClientSize.Height - heroHeight;
+            if (heroY > bottomLimit) heroY = bottomLimit;
+        }
+
 
         private void SpawnAsteroidsIfPossible()
         {
@@ -756,7 +790,10 @@ namespace LabaVideoGame
 
         private void Form1_KeyUp(object sender, KeyEventArgs e)
         {
-
+            if (e.KeyCode == Keys.Up || e.KeyCode == Keys.W) moveUp = false;
+            if (e.KeyCode == Keys.Down || e.KeyCode == Keys.S) moveDown = false;
+            if (e.KeyCode == Keys.Left || e.KeyCode == Keys.A) moveLeft = false;
+            if (e.KeyCode == Keys.Right || e.KeyCode == Keys.D) moveRight = false;
         }
 
         private void Form1_KeyDown(object sender, KeyEventArgs e)
@@ -775,26 +812,22 @@ namespace LabaVideoGame
             }
             int step = heroSpeed;
 
-            // Двигаем корабль ВВЕРХ при Left/Up
-            if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Up)
-            {
-                heroY -= step;
-            }
-            // Двигаем корабль ВНИЗ при Right/Down
-            else if (e.KeyCode == Keys.Right || e.KeyCode == Keys.Down)
-            {
-                heroY += step;
-            }
+            // Вверх (Left/Up)
+            if (e.KeyCode == Keys.Up || e.KeyCode == Keys.W) moveUp = true;
+            if (e.KeyCode == Keys.Down || e.KeyCode == Keys.S) moveDown = true;
+            if (e.KeyCode == Keys.Left || e.KeyCode == Keys.A) moveLeft = true;
+            if (e.KeyCode == Keys.Right || e.KeyCode == Keys.D) moveRight = true;
 
-            // Ограничение по границам формы
-            if (heroY < 0)
-                heroY = 0;
-
+            // Ограничения по Y
+            if (heroY < 0) heroY = 0;
             int bottomLimit = this.ClientSize.Height - heroHeight;
-            if (heroY > bottomLimit)
-                heroY = bottomLimit;
+            if (heroY > bottomLimit) heroY = bottomLimit;
 
-            // Перерисовать форму
+            // Ограничения по X
+            if (heroX < 0) heroX = 0;
+            int rightLimit = this.ClientSize.Width - heroWidth;
+            if (heroX > rightLimit) heroX = rightLimit;
+
             this.Invalidate();
         }
 

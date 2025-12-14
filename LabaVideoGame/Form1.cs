@@ -121,7 +121,7 @@ namespace LabaVideoGame
         private int asteroidMaxSpeed = 5;
 
         private int asteroidSpawnElapsedMs = 0;
-        private const int AsteroidSpawnIntervalMs = 5000; // каждые ~2.5 сек новый астероид
+        private int AsteroidSpawnIntervalMs = 5000; // каждые ~2.5 сек новый астероид
 
         // ===== ВТОРАЯ ФАЗА =====
         private bool phase2Started = false;
@@ -367,7 +367,7 @@ namespace LabaVideoGame
                 enemyInvulnerable = false;
 
                 // 4) теперь стреляет раз в секунду
-                enemyShootIntervalMs = 1000;
+                enemyShootIntervalMs = 1500;
                 enemyShootElapsedMs = 0;
 
                 tarelochincaSpeed = 10;
@@ -383,6 +383,7 @@ namespace LabaVideoGame
             phase2Transition = true;
             phase2ElapsedMs = 0;
             heroHp = 500;
+
             // 1) музыка затихает
             StartMusicFadeOut();
 
@@ -396,6 +397,9 @@ namespace LabaVideoGame
 
             // 5) меняем анимацию на злую
             SetTarelochincaImage(tarelochincaAngryImage);
+            starSpeed = 6;
+            AsteroidSpawnIntervalMs = 4000;
+
         }
 
         private void StartMusicFadeOut()
@@ -436,7 +440,6 @@ namespace LabaVideoGame
 
         private void SetTarelochincaImage(Image newImg)
         {
-            // аккуратно меняем Image у PictureBox и освобождаем старый
             if (tarelochinca.Image != null && !ReferenceEquals(tarelochinca.Image, newImg))
             {
                 tarelochinca.Image.Dispose();
